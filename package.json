@@ -1,0 +1,21 @@
+{
+  "name": "openpoker",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev --workspace apps/web",
+    "dev:server": "npm run dev --workspace apps/server",
+    "build:engine": "npm run build --workspace packages/engine",
+    "build:shared": "npm run build --workspace packages/shared",
+    "build:web": "npm run build --workspace apps/web",
+    "build:server": "npm run build --workspace apps/server",
+    "test:engine": "npm run test --workspace packages/engine"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
