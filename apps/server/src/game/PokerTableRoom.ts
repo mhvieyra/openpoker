@@ -14,6 +14,7 @@ export interface TableRoomConfig {
   blinds: BlindLevel;
   mode: "cash" | "tournament";
   defaultBuyIn: number;
+  bountyPerKnockout?: number;
   autoFillBots: boolean;
   minPlayersToKeepLively?: number;
   turnTimeMs?: number;
@@ -33,6 +34,7 @@ export class PokerTableRoom {
   private occupants = new Map<string, Occupant>();
   private pendingLeaves = new Set<string>();
   private turnTimer: ReturnType<typeof setTimeout> | null = null;
+  private scheduledForPlayerId: string | null = null;
   private stepScheduled = false;
   private closed = false;
   private config: TableRoomConfig;
@@ -188,6 +190,7 @@ export class PokerTableRoom {
       clearTimeout(this.turnTimer);
       this.turnTimer = null;
     }
+    this.scheduledForPlayerId = null;
   }
 
   private stepTurn(): void {
@@ -205,6 +208,10 @@ export class PokerTableRoom {
       return;
     }
 
+    // A timer is already pending for this exact turn (e.g. a seat change re-triggered
+    // scheduleStep mid-hand) — never schedule a second one for the same turn.
+    if (this.scheduledForPlayerId === toActId) return;
+
     const occupant = this.occupants.get(toActId);
     if (!occupant) return;
 
@@ -218,12 +225,18 @@ export class PokerTableRoom {
         myPlayerId: toActId,
         myStack: this.table.getSeats().find((s) => s.id === toActId)?.stack ?? 0,
       });
+      this.scheduledForPlayerId = toActId;
       this.turnTimer = setTimeout(() => {
-        if (hand.isComplete()) return;
+        this.scheduledForPlayerId = null;
+        if (hand.isComplete() || hand.getToActPlayerId() !== toActId) return;
         try {
           hand.applyAction(toActId, decision.type, decision.amount);
         } catch {
-          hand.applyAction(toActId, "fold", 0);
+          try {
+            hand.applyAction(toActId, "fold", 0);
+          } catch {
+            // Turn moved on for reasons outside this decision; nothing more to do here.
+          }
         }
         this.broadcastState();
         this.stepTurn();
@@ -234,11 +247,17 @@ export class PokerTableRoom {
     // Human to act: broadcast state (client renders their action clock) and set an auto-fold/check timeout.
     this.broadcastState();
     const turnTimeMs = this.config.turnTimeMs ?? 20_000;
+    this.scheduledForPlayerId = toActId;
     this.turnTimer = setTimeout(() => {
+      this.scheduledForPlayerId = null;
       if (hand.isComplete() || hand.getToActPlayerId() !== toActId) return;
       const options = hand.getActionOptions(toActId);
       const fallback = options.find((o) => o.type === "check") ? "check" : "fold";
-      hand.applyAction(toActId, fallback, 0);
+      try {
+        hand.applyAction(toActId, fallback, 0);
+      } catch {
+        // Turn moved on for reasons outside this timeout; nothing more to do here.
+      }
       this.broadcastState();
       this.stepTurn();
     }, turnTimeMs);
@@ -318,6 +337,7 @@ export class PokerTableRoom {
       mode: this.mode,
       maxSeats: this.maxSeats,
       blinds: this.getBlinds(),
+      bountyPerKnockout: this.config.bountyPerKnockout ?? null,
       seats: this.table.getSeats().map((s) => {
         const occupant = this.occupants.get(s.id);
         return {

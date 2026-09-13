@@ -89,6 +89,7 @@ export class RoomManager {
     const account = getAccount(userId);
     if (!account || account.balance < buyIn) return { ok: false, error: "Saldo insuficiente." };
     if (room.seatedUserIds().includes(userId)) return { ok: false, error: "Ya estás sentado en esta mesa." };
+    if (room.getSeats().length >= room.maxSeats) return { ok: false, error: "La mesa está llena." };
     adjustBalance(userId, -buyIn);
     const seatIndex = room.addHuman(userId, buyIn);
     return { ok: true, seatIndex };

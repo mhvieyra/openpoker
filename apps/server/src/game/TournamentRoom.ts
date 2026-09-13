@@ -91,6 +91,7 @@ export class TournamentRoom {
         blinds: this.config.blindLevels[0],
         mode: "tournament",
         defaultBuyIn: this.config.startingStack,
+        bountyPerKnockout: this.config.bountyPerPlayer,
         autoFillBots: false,
         turnTimeMs: 18_000,
         handStartDelayMs: 2500,

@@ -62,6 +62,7 @@ export interface TableView {
   mode: "cash" | "tournament";
   maxSeats: number;
   blinds: { smallBlind: number; bigBlind: number; ante: number };
+  bountyPerKnockout: number | null;
   seats: SeatView[];
   hand: HandView | null;
   myHoleCards: string[];

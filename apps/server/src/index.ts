@@ -4,6 +4,14 @@ import { RoomManager } from "./game/RoomManager.js";
 
 const PORT = Number(process.env.PORT ?? 8080);
 
+// A bug in one table's bot timer or hand logic must never take down every other table.
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught exception (server kept running):", err);
+});
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled rejection (server kept running):", err);
+});
+
 const roomManager = new RoomManager();
 
 const httpServer = createServer((req, res) => {

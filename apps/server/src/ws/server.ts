@@ -42,62 +42,68 @@ export function createWsServer(httpServer: Server, roomManager: RoomManager): We
       }
       const msg = result.data;
 
-      if (msg.type === "auth") {
-        const account = loginOrCreate(msg.displayName, msg.sessionToken);
-        userId = account.userId;
-        registerConnection(userId, socket);
-        send(socket, { type: "auth:ok", userId: account.userId, displayName: account.displayName, balance: account.balance });
-        return;
-      }
+      try {
+        if (msg.type === "auth") {
+          const account = loginOrCreate(msg.displayName, msg.sessionToken);
+          userId = account.userId;
+          registerConnection(userId, socket);
+          send(socket, { type: "auth:ok", userId: account.userId, displayName: account.displayName, balance: account.balance });
+          return;
+        }
 
-      if (!userId) {
-        send(socket, { type: "error", message: "Autenticate primero." });
-        return;
-      }
+        if (!userId) {
+          send(socket, { type: "error", message: "Autenticate primero." });
+          return;
+        }
 
-      switch (msg.type) {
-        case "lobby:subscribe": {
-          lobbySubscribers.add(userId);
-          sendLobbySnapshot(userId, roomManager);
-          break;
-        }
-        case "table:join": {
-          const result = roomManager.joinCashTable(userId, msg.tableId, msg.buyIn);
-          if (!result.ok) send(socket, { type: "error", message: result.error });
-          else send(socket, { type: "table:joined", tableId: msg.tableId, seatIndex: result.seatIndex });
-          break;
-        }
-        case "table:leave": {
-          roomManager.leaveCashTable(userId, msg.tableId);
-          send(socket, { type: "table:left", tableId: msg.tableId });
-          break;
-        }
-        case "table:sit_out": {
-          roomManager.findRoomForAction(userId, msg.tableId)?.setSittingOut(userId, true);
-          break;
-        }
-        case "table:sit_in": {
-          roomManager.findRoomForAction(userId, msg.tableId)?.setSittingOut(userId, false);
-          break;
-        }
-        case "table:action": {
-          const room = roomManager.findRoomForAction(userId, msg.tableId);
-          if (!room) {
-            send(socket, { type: "error", message: "No estás sentado en esa mesa." });
+        switch (msg.type) {
+          case "lobby:subscribe": {
+            lobbySubscribers.add(userId);
+            sendLobbySnapshot(userId, roomManager);
             break;
           }
-          room.handleClientAction(userId, msg.action, msg.amount);
-          break;
+          case "table:join": {
+            const result = roomManager.joinCashTable(userId, msg.tableId, msg.buyIn);
+            if (!result.ok) send(socket, { type: "error", message: result.error });
+            else send(socket, { type: "table:joined", tableId: msg.tableId, seatIndex: result.seatIndex });
+            break;
+          }
+          case "table:leave": {
+            roomManager.leaveCashTable(userId, msg.tableId);
+            send(socket, { type: "table:left", tableId: msg.tableId });
+            break;
+          }
+          case "table:sit_out": {
+            roomManager.findRoomForAction(userId, msg.tableId)?.setSittingOut(userId, true);
+            break;
+          }
+          case "table:sit_in": {
+            roomManager.findRoomForAction(userId, msg.tableId)?.setSittingOut(userId, false);
+            break;
+          }
+          case "table:action": {
+            const room = roomManager.findRoomForAction(userId, msg.tableId);
+            if (!room) {
+              send(socket, { type: "error", message: "No estás sentado en esa mesa." });
+              break;
+            }
+            room.handleClientAction(userId, msg.action, msg.amount);
+            break;
+          }
+          case "tournament:register": {
+            const result = roomManager.registerTournament(userId, msg.tournamentId);
+            if (!result.ok) send(socket, { type: "error", message: result.error });
+            break;
+          }
+          case "ping": {
+            send(socket, { type: "pong" });
+            break;
+          }
         }
-        case "tournament:register": {
-          const result = roomManager.registerTournament(userId, msg.tournamentId);
-          if (!result.ok) send(socket, { type: "error", message: result.error });
-          break;
-        }
-        case "ping": {
-          send(socket, { type: "pong" });
-          break;
-        }
+      } catch (err) {
+        // A single bad interaction must never take the whole server down for every player.
+        console.error("Error handling client message", msg.type, err);
+        send(socket, { type: "error", message: "Ocurrió un error procesando tu acción." });
       }
     });
 

@@ -30,7 +30,7 @@ export function Avatar({ seed, size = 40, ring }: { seed: string; size?: number;
   const [failed, setFailed] = useState(false);
   const hash = hashSeed(seed);
   const color = PALETTE[hash % PALETTE.length];
-  const src = `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(seed)}&backgroundType=gradientLinear&backgroundColor=${color}`;
+  const src = `https://api.dicebear.com/9.x/personas/svg?seed=${encodeURIComponent(seed)}&backgroundType=gradientLinear&backgroundColor=${color}`;
 
   return (
     <div

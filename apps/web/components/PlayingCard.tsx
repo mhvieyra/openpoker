@@ -21,16 +21,10 @@ export function CardBack({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const dims = size === "sm" ? "w-6 h-8" : size === "lg" ? "w-12 h-16" : "w-9 h-12";
   return (
     <div
-      className={`${dims} rounded-md border-2 border-white/80 shadow-md relative overflow-hidden`}
-      style={{ background: "#a01f28" }}
+      className={`${dims} rounded-[3px] border-[1.5px] border-white/90 shadow-md relative overflow-hidden`}
+      style={{ background: "#8c1421" }}
     >
-      <div
-        className="absolute inset-0.5 rounded-sm"
-        style={{
-          background:
-            "repeating-linear-gradient(45deg, #c22b35, #c22b35 3px, #a01f28 3px, #a01f28 6px)",
-        }}
-      />
+      <div className="absolute inset-[2px] rounded-[1px] border border-white/25" />
     </div>
   );
 }
