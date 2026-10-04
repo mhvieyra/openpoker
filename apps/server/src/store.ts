@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 
 // In-memory account + wallet store. Play-money balances only; resets on process restart.
 // Swap for Postgres/Prisma later without touching callers (same function signatures).
@@ -33,9 +32,9 @@ export function loginOrCreate(displayName: string, sessionToken?: string): Accou
   }
 
   const account: Account = {
-    userId: randomUUID(),
+    userId: globalThis.crypto.randomUUID(),
     displayName: displayName.trim(),
-    sessionToken: randomUUID(),
+    sessionToken: globalThis.crypto.randomUUID(),
     balance: STARTING_BALANCE,
     createdAt: Date.now(),
   };

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import type { BlindLevel } from "@openpoker/engine";
 import type { TableSummary, TournamentSummary } from "@openpoker/shared";
 import { PokerTableRoom } from "./PokerTableRoom.js";
@@ -52,7 +51,7 @@ export class RoomManager {
   }
 
   private spawnKnockoutTournament(): void {
-    const id = `ko_${randomUUID().slice(0, 8)}`;
+    const id = `ko_${globalThis.crypto.randomUUID().slice(0, 8)}`;
     const tournament = new TournamentRoom({
       id,
       name: "New Year Series - Knockout Bounty",

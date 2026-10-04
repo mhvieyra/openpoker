@@ -78,8 +78,10 @@ fly deploy
      paso anterior, con esquema `wss://` y el path `/ws`).
 4. Deploy. Framework preset: Next.js (autodetectado).
 
-Sin `NEXT_PUBLIC_WS_URL`, el frontend intenta conectarse a `ws://localhost:8080/ws`
-(sirve solo para desarrollo local).
+Sin `NEXT_PUBLIC_WS_URL`, el frontend corre el juego completo (mesas, bots, torneos y
+saldo) dentro del propio navegador, sin servidor: alcanza con desplegar solo `apps/web`.
+El estado vive en la pestaña y se reinicia al recargar. Definí `NEXT_PUBLIC_WS_URL` solo
+si querés usar el servidor remoto.
 
 ## Alcance y límites de esta versión
 

@@ -1,9 +1,15 @@
-import type { WebSocket } from "ws";
 import type { ServerMessage } from "@openpoker/shared";
 
-const socketsByUserId = new Map<string, WebSocket>();
+/** Minimal socket surface the game needs; satisfied by `ws` sockets and the in-browser loopback. */
+export interface ClientSocket {
+  readyState: number;
+  send(data: string): void;
+}
 
-export function registerConnection(userId: string, socket: WebSocket): void {
+const OPEN = 1;
+const socketsByUserId = new Map<string, ClientSocket>();
+
+export function registerConnection(userId: string, socket: ClientSocket): void {
   socketsByUserId.set(userId, socket);
 }
 
@@ -13,7 +19,7 @@ export function removeConnection(userId: string): void {
 
 export function sendToUser(userId: string, message: ServerMessage): void {
   const socket = socketsByUserId.get(userId);
-  if (socket && socket.readyState === socket.OPEN) {
+  if (socket && socket.readyState === OPEN) {
     socket.send(JSON.stringify(message));
   }
 }

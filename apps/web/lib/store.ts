@@ -3,6 +3,7 @@
 import { create } from "zustand";
 import type { TableSummary, TournamentSummary } from "@openpoker/shared";
 import { handCategoryLabel } from "./handLabels";
+import type { GameSocket } from "./localSocket";
 
 export type ActionType = "fold" | "check" | "call" | "bet" | "raise" | "all-in";
 
@@ -99,13 +100,20 @@ interface Store {
   registerTournament: (tournamentId: string) => void;
 }
 
-let socket: WebSocket | null = null;
+const SOCKET_OPEN = 1;
+let socket: GameSocket | null = null;
+
+/** With NEXT_PUBLIC_WS_URL set we talk to a remote game server; otherwise the game runs in this tab. */
+const useRemoteServer = Boolean(process.env.NEXT_PUBLIC_WS_URL);
 
 function wsUrl(): string {
-  const base = process.env.NEXT_PUBLIC_WS_URL;
-  if (base) return base;
-  const proto = typeof window !== "undefined" && window.location.protocol === "https:" ? "wss" : "ws";
-  return `${proto}://localhost:8080/ws`;
+  return process.env.NEXT_PUBLIC_WS_URL ?? "";
+}
+
+async function openSocket(): Promise<GameSocket> {
+  if (useRemoteServer) return new WebSocket(wsUrl()) as unknown as GameSocket;
+  const { LocalSocket } = await import("./localSocket");
+  return new LocalSocket();
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -123,37 +131,12 @@ export const useStore = create<Store>((set, get) => ({
   connect: () => {
     if (socket || get().connecting) return;
     set({ connecting: true });
-    const ws = new WebSocket(wsUrl());
-    socket = ws;
-
-    ws.onopen = () => {
-      set({ connected: true, connecting: false, authError: null });
-      const savedName = typeof window !== "undefined" ? localStorage.getItem("openpoker:name") : null;
-      const savedToken = typeof window !== "undefined" ? localStorage.getItem("openpoker:token") : undefined;
-      if (savedName) {
-        ws.send(JSON.stringify({ type: "auth", displayName: savedName, sessionToken: savedToken ?? undefined }));
-      }
-    };
-
-    ws.onerror = () => {
-      set({ authError: `No se pudo conectar al servidor de juego (${wsUrl()}).` });
-    };
-
-    ws.onclose = () => {
-      socket = null;
-      set({ connected: false, connecting: false });
-      setTimeout(() => get().connect(), 2000);
-    };
-
-    ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      handleServerMessage(msg, set, get);
-    };
+    void openSocket().then((ws) => attachSocket(ws, set, get));
   },
 
   login: (displayName: string) => {
     if (typeof window !== "undefined") localStorage.setItem("openpoker:name", displayName);
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
+    if (!socket || socket.readyState !== SOCKET_OPEN) {
       set({ authError: "No hay conexión con el servidor de juego. Reintentando, probá de nuevo en unos segundos." });
       get().connect();
       return;
@@ -190,6 +173,36 @@ export const useStore = create<Store>((set, get) => ({
     socket?.send(JSON.stringify({ type: "tournament:register", tournamentId }));
   },
 }));
+
+type StoreSet = (partial: Partial<Store> | ((s: Store) => Partial<Store>)) => void;
+
+function attachSocket(ws: GameSocket, set: StoreSet, get: () => Store) {
+  socket = ws;
+
+  ws.onopen = () => {
+    set({ connected: true, connecting: false, authError: null });
+    const savedName = typeof window !== "undefined" ? localStorage.getItem("openpoker:name") : null;
+    const savedToken = typeof window !== "undefined" ? localStorage.getItem("openpoker:token") : undefined;
+    if (savedName) {
+      ws.send(JSON.stringify({ type: "auth", displayName: savedName, sessionToken: savedToken ?? undefined }));
+    }
+  };
+
+  ws.onerror = () => {
+    set({ authError: `No se pudo conectar al servidor de juego (${wsUrl()}). Si querés jugar sin servidor, quitá NEXT_PUBLIC_WS_URL.` });
+  };
+
+  ws.onclose = () => {
+    socket = null;
+    set({ connected: false, connecting: false });
+    setTimeout(() => get().connect(), 2000);
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    handleServerMessage(msg, set, get);
+  };
+}
 
 function buildHistoryEntry(table: TableView): HandHistoryEntry {
   const hand = table.hand!;
