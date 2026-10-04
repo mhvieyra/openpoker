@@ -7,6 +7,7 @@ export function LoginScreen() {
   const [name, setName] = useState("");
   const login = useStore((s) => s.login);
   const authError = useStore((s) => s.authError);
+  const connected = useStore((s) => s.connected);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#0a0f14] px-4">
@@ -34,6 +35,7 @@ export function LoginScreen() {
             Entrar a jugar
           </button>
         </form>
+        {!connected && !authError && <p className="text-xs text-white/40 mt-2">Conectando con el servidor…</p>}
         {authError && <p className="text-xs text-red-400 mt-2">{authError}</p>}
       </div>
     </div>
