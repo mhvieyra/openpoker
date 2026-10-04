@@ -127,7 +127,7 @@ export const useStore = create<Store>((set, get) => ({
     socket = ws;
 
     ws.onopen = () => {
-      set({ connected: true, connecting: false });
+      set({ connected: true, connecting: false, authError: null });
       const savedName = typeof window !== "undefined" ? localStorage.getItem("openpoker:name") : null;
       const savedToken = typeof window !== "undefined" ? localStorage.getItem("openpoker:token") : undefined;
       if (savedName) {
@@ -135,9 +135,13 @@ export const useStore = create<Store>((set, get) => ({
       }
     };
 
+    ws.onerror = () => {
+      set({ authError: `No se pudo conectar al servidor de juego (${wsUrl()}).` });
+    };
+
     ws.onclose = () => {
       socket = null;
-      set({ connected: false });
+      set({ connected: false, connecting: false });
       setTimeout(() => get().connect(), 2000);
     };
 
@@ -149,7 +153,13 @@ export const useStore = create<Store>((set, get) => ({
 
   login: (displayName: string) => {
     if (typeof window !== "undefined") localStorage.setItem("openpoker:name", displayName);
-    socket?.send(JSON.stringify({ type: "auth", displayName }));
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      set({ authError: "No hay conexión con el servidor de juego. Reintentando, probá de nuevo en unos segundos." });
+      get().connect();
+      return;
+    }
+    set({ authError: null });
+    socket.send(JSON.stringify({ type: "auth", displayName }));
   },
 
   joinTable: (tableId, buyIn) => {
